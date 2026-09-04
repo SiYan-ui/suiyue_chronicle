@@ -1,6 +1,3 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
 const COLORS=['#bd5c3d','#246657','#c89b42','#4f6e9c','#8b5f82','#608764'];
 const seed={version:1,name:'三国纪事',people:[
   {id:'p1',name:'刘备',born:'161年',died:'223年',main:true,note:'蜀汉昭烈帝'},
@@ -22,7 +19,7 @@ const seed={version:1,name:'三国纪事',people:[
   {id:'e7',title:'夷陵之战',date:'222年',year:222,place:'夷陵',people:['p1'],description:'刘备伐吴，于夷陵遭陆逊火攻，蜀军大败。'}
 ]};
 
-let data=loadLocal()||structuredClone(seed);let scene,camera,renderer,controls,raycaster,pointer,targets=[],resizeObserver;
+let data=loadLocal()||structuredClone(seed);let scene;
 const $=s=>document.querySelector(s);const byId=id=>data.people.find(p=>p.id===id);
 const escapeHtml=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 function save(){localStorage.setItem('suiyue-book',JSON.stringify(data));}
@@ -36,7 +33,7 @@ function bindUI(){
   $('#loadBookInput').onchange=importBook;$('#scrim').onclick=closeDrawer;
   document.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeDrawer);
   document.querySelectorAll('[data-dialog-close]').forEach(b=>b.onclick=()=>$('#editorDialog').close());
-  $('#resetViewBtn').onclick=resetCamera;$('#zoomInBtn').onclick=()=>{camera.position.multiplyScalar(.85)};$('#zoomOutBtn').onclick=()=>{camera.position.multiplyScalar(1.15)};
+  $('#resetViewBtn').onclick=()=>buildScene();$('#zoomInBtn').onclick=()=>{};$('#zoomOutBtn').onclick=()=>{};
   window.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
 }
 function renderAll(){
@@ -45,30 +42,9 @@ function renderAll(){
   renderRelations();if(scene)buildScene();lucide.createIcons();
 }
 
-function initScene(){
-  const host=$('#scene');scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0xf0eee7,.016);
-  camera=new THREE.PerspectiveCamera(44,host.clientWidth/host.clientHeight,.1,1000);camera.position.set(20,23,28);
-  renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(host.clientWidth,host.clientHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;host.appendChild(renderer.domElement);
-  controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.06;controls.target.set(0,6,0);controls.minDistance=10;controls.maxDistance=70;
-  raycaster=new THREE.Raycaster();pointer=new THREE.Vector2();renderer.domElement.addEventListener('pointerup',pick);
-  resizeObserver=new ResizeObserver(()=>{if(!host.clientWidth)return;camera.aspect=host.clientWidth/host.clientHeight;camera.updateProjectionMatrix();renderer.setSize(host.clientWidth,host.clientHeight)});resizeObserver.observe(host);
-  buildScene();renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera)});
-}
-function resetCamera(){camera.position.set(20,23,28);controls.target.set(0,6,0);controls.update()}
-function disposeScene(){while(scene.children.length){const o=scene.children.pop();o.traverse?.(x=>{x.geometry?.dispose();if(x.material){(Array.isArray(x.material)?x.material:[x.material]).forEach(m=>m.dispose())}})}}
 function buildScene(){
-  disposeScene();targets=[];$('#sceneEmpty').hidden=data.events.length>0;
-  scene.add(new THREE.HemisphereLight(0xffffff,0x6c766f,2.2));const dl=new THREE.DirectionalLight(0xffffff,2);dl.position.set(5,15,8);scene.add(dl);
-  const grid=new THREE.GridHelper(38,19,0xcbd1cb,0xdfe2dc);grid.position.y=-.05;grid.material.opacity=.48;grid.material.transparent=true;scene.add(grid);
-  const years=[...new Set(data.events.map(e=>Number(e.year)||0))].sort((a,b)=>a-b);const places=[...new Set(data.events.map(e=>e.place||'未详'))];const minY=Math.min(...years,0);const maxY=Math.max(...years,1);const yFor=y=>years.length<2?5:((y-minY)/(maxY-minY))*13;
-  const placePos=new Map();places.forEach((p,i)=>{const a=(i/Math.max(places.length,1))*Math.PI*2;const radius=places.length===1?0:Math.min(10,4+places.length*.75);placePos.set(p,new THREE.Vector3(Math.cos(a)*radius,0,Math.sin(a)*radius))});
-  places.forEach((p,i)=>{const base=placePos.get(p);const ring=new THREE.Mesh(new THREE.RingGeometry(1.7,1.76,64),new THREE.MeshBasicMaterial({color:i%2?0xb8c3bc:0xd1b985,transparent:true,opacity:.65,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.copy(base);ring.position.y=.02;scene.add(ring);const label=makeLabel(p,'place');label.position.set(base.x,.16,base.z);scene.add(label)});
-  years.forEach(y=>{const yy=yFor(y);const mat=new THREE.LineBasicMaterial({color:0xb9c1bb,transparent:true,opacity:.3});const geo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-15,yy,-12),new THREE.Vector3(15,yy,-12)]);scene.add(new THREE.Line(geo,mat));const label=makeLabel(`${y}年`,'year');label.position.set(-15.7,yy,-12);scene.add(label)});
-  const eventPositions=new Map();data.events.forEach((e,i)=>{const base=placePos.get(e.place||'未详');const same=data.events.filter(x=>x.place===e.place&&x.year===e.year);const idx=same.indexOf(e);const angle=(idx/Math.max(1,same.length))*Math.PI*2;const pos=new THREE.Vector3(base.x+Math.cos(angle)*.65,yFor(Number(e.year)||0),base.z+Math.sin(angle)*.65);eventPositions.set(e.id,pos);const mesh=new THREE.Mesh(new THREE.SphereGeometry(.24,20,20),new THREE.MeshStandardMaterial({color:e.title?0xbd5c3d:0xc89b42,roughness:.35,metalness:.08,emissive:e.title?0x351107:0x3b2c09,emissiveIntensity:.13}));mesh.position.copy(pos);mesh.userData={type:'event',id:e.id};scene.add(mesh);targets.push(mesh);const halo=new THREE.Mesh(new THREE.RingGeometry(.35,.42,32),new THREE.MeshBasicMaterial({color:e.title?0xbd5c3d:0xc89b42,transparent:true,opacity:.28,side:THREE.DoubleSide}));halo.position.copy(pos);halo.lookAt(camera.position);scene.add(halo);});
-  data.people.forEach((p,pi)=>{const evs=data.events.filter(e=>e.people.includes(p.id)).sort((a,b)=>a.year-b.year);if(evs.length<2)return;const pts=evs.map(e=>eventPositions.get(e.id));const curve=new THREE.CatmullRomCurve3(pts);const tube=new THREE.Mesh(new THREE.TubeGeometry(curve,Math.max(16,pts.length*10),.055,8,false),new THREE.MeshBasicMaterial({color:COLORS[pi%COLORS.length],transparent:true,opacity:.8}));tube.userData={type:'person',id:p.id};scene.add(tube);targets.push(tube)});
+  const host=$('#scene'),years=[...new Set(data.events.map(e=>Number(e.year)||0))].sort((a,b)=>a-b),places=[...new Set(data.events.map(e=>e.place||'未详'))];$('#sceneEmpty').hidden=data.events.length>0;if(!data.events.length){host.innerHTML='';return}const W=host.clientWidth||700,H=host.clientHeight||600,left=35,right=75,top=35,bottom=35,row=Math.max(64,(H-top-bottom)/Math.max(1,years.length));const xPlace=new Map(places.map((p,i)=>[p,left+i*((W-left-right)/Math.max(1,places.length-1))]));const yYear=y=>H-bottom-(years.indexOf(y))*row;let svg=`<svg class="timeline-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><line class="axis-line" x1="${W-right}" y1="${top-12}" x2="${W-right}" y2="${H-bottom+12}"/>`;places.forEach((p,i)=>{const x=xPlace.get(p);svg+=`<text class="place-label" x="${x}" y="${H-10}">${escapeHtml(p)}</text>`});years.forEach(y=>{const yy=yYear(y);svg+=`<line class="time-line" x1="${left}" y1="${yy}" x2="${W-right}" y2="${yy}"/><text class="year-label" x="${W-right+12}" y="${yy+4}">${y}年</text>`});const pos=new Map();data.events.forEach(e=>e.people.forEach(pid=>{const x=xPlace.get(e.place||'未详'), y=yYear(Number(e.year)||0);pos.set(`${e.id}:${pid}`,{x,y})}));data.people.forEach((p,pi)=>{const evs=data.events.filter(e=>e.people.includes(p.id)).sort((a,b)=>a.year-b.year);if(evs.length>1)svg+=`<polyline class="person-path" stroke="${COLORS[pi%COLORS.length]}" points="${evs.map(e=>{const q=pos.get(`${e.id}:${p.id}`);return `${q.x},${q.y}`}).join(' ') }"/>`});data.events.forEach(e=>e.people.forEach((pid,pi)=>{const q=pos.get(`${e.id}:${pid}`);svg+=`<circle class="person-dot" data-event="${e.id}" cx="${q.x}" cy="${q.y}" r="7" fill="${COLORS[data.people.findIndex(p=>p.id===pid)%COLORS.length]}"/>`}));svg+='</svg>';host.innerHTML=svg;host.querySelectorAll('.person-dot').forEach(el=>el.onclick=()=>showEvent(el.dataset.event));
 }
-function makeLabel(textValue,type){const c=document.createElement('canvas');c.width=256;c.height=64;const x=c.getContext('2d');x.font=type==='year'?'500 24px sans-serif':'600 27px serif';x.fillStyle=type==='year'?'#7e8983':'#30443d';x.textAlign='center';x.fillText(textValue,128,39);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false}));s.scale.set(3.2,.8,1);return s}
-function pick(ev){const r=renderer.domElement.getBoundingClientRect();pointer.x=((ev.clientX-r.left)/r.width)*2-1;pointer.y=-((ev.clientY-r.top)/r.height)*2+1;raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(targets,false)[0];if(!hit)return;hit.object.userData.type==='event'?showEvent(hit.object.userData.id):showPersonTimeline(hit.object.userData.id)}
 
 function renderRelations(){
   const host=$('#relationCanvas'),nodes=$('#relationNodes'),svg=$('#relationLines');nodes.innerHTML='';svg.innerHTML='';const main=data.people.find(p=>p.main)||data.people[0];if(!main)return;
