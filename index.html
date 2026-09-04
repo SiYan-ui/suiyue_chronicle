@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f2f0ea">
+  <title>岁阅 · 史事脉络</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">岁</span>
+        <div><strong>岁阅</strong><span>史事脉络</span></div>
+      </div>
+      <div class="book-switcher">
+        <span class="status-dot"></span>
+        <div><span>当前书籍</span><strong id="bookName">三国纪事</strong></div>
+        <button class="icon-button" id="renameBookBtn" title="重命名书籍" aria-label="重命名书籍"><i data-lucide="pencil-line"></i></button>
+      </div>
+      <div class="header-actions">
+        <button class="button subtle" id="newBookBtn"><i data-lucide="file-plus-2"></i>新建</button>
+        <label class="button subtle" for="loadBookInput"><i data-lucide="folder-open"></i>载入</label>
+        <input id="loadBookInput" type="file" accept=".json,application/json" multiple hidden>
+        <button class="button primary" id="exportBtn"><i data-lucide="download"></i>导出书籍</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="event-panel" aria-label="事件时空">
+        <div class="panel-heading event-heading">
+          <div>
+            <span class="eyebrow">时空卷轴</span>
+            <h1>事件脉络</h1>
+          </div>
+          <div class="heading-tools">
+            <div class="legend" id="personLegend"></div>
+            <button class="button dark" id="addEventBtn"><i data-lucide="plus"></i>添加事件</button>
+          </div>
+        </div>
+        <div class="scene-wrap" id="sceneWrap">
+          <div id="scene"></div>
+          <div class="scene-tools">
+            <button class="icon-button glass" id="resetViewBtn" title="复位视角" aria-label="复位视角"><i data-lucide="focus"></i></button>
+            <button class="icon-button glass" id="zoomInBtn" title="放大" aria-label="放大"><i data-lucide="zoom-in"></i></button>
+            <button class="icon-button glass" id="zoomOutBtn" title="缩小" aria-label="缩小"><i data-lucide="zoom-out"></i></button>
+          </div>
+          <div class="time-axis-label"><i data-lucide="arrow-up"></i><span>时间</span></div>
+          <div class="scene-hint"><i data-lucide="mouse-pointer-2"></i>拖动旋转 · 滚轮缩放 · 点击事件或轨迹</div>
+          <div class="scene-empty" id="sceneEmpty" hidden>
+            <i data-lucide="orbit"></i><strong>尚无事件</strong><span>添加第一条记录，开始构建时空脉络</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="relation-panel" aria-label="人物关系">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">人物谱系</span>
+            <h2>人物关系</h2>
+          </div>
+          <button class="icon-button" id="addPersonBtn" title="添加人物" aria-label="添加人物"><i data-lucide="user-plus"></i></button>
+        </div>
+        <div class="relation-summary">
+          <span><strong id="personCount">0</strong> 人物</span>
+          <span><strong id="relationCount">0</strong> 关系</span>
+        </div>
+        <div class="relation-canvas" id="relationCanvas">
+          <svg id="relationLines" aria-hidden="true"></svg>
+          <div id="relationNodes"></div>
+        </div>
+        <div class="relation-key"><span><i class="key-line older"></i>年长 / 前辈</span><span><i class="key-line younger"></i>年幼 / 后辈</span></div>
+      </section>
+    </main>
+  </div>
+
+  <aside class="drawer" id="detailDrawer" aria-hidden="true">
+    <button class="icon-button drawer-close" data-close="detailDrawer" aria-label="关闭"><i data-lucide="x"></i></button>
+    <div id="detailContent"></div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <dialog id="editorDialog">
+    <form method="dialog" id="editorForm">
+      <div class="dialog-heading"><div><span class="eyebrow" id="dialogEyebrow">新记录</span><h2 id="dialogTitle">添加事件</h2></div><button type="button" class="icon-button" data-dialog-close aria-label="关闭"><i data-lucide="x"></i></button></div>
+      <div id="formFields"></div>
+      <div class="dialog-actions"><button type="button" class="button subtle" data-dialog-close>取消</button><button type="submit" class="button primary">保存</button></div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.171.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.171.0/examples/jsm/"}}</script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
